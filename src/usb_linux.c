@@ -663,6 +663,8 @@ static void register_device(const char *dev_name,
 
 	if (is_device_allowed(serial)) {
 	    register_usb_transport(usb, serial, usb->writeable);
+	} else {
+		goto fail;
 	}
     return;
 
