@@ -860,12 +860,6 @@ int adb_commandline(int argc, char **argv)
         }
     }
 
-	/* Check if adb is limited to one device */
-	device_id = getenv("ANDROID_DEVICE_ID");
-	if (device_id &&  strlen(device_id) > 0) {
-		fprintf(stdout, "This adb is limited to 1 device: '%s'\n", device_id);
-	}
-
     /* modifiers and flags */
     while(argc > 0) {
         if(!strcmp(argv[0],"server")) {
@@ -1274,6 +1268,17 @@ top:
         version(stdout);
         return 0;
     }
+
+	if(!strcmp(argv[0], "limited")) {
+		/* Check if adb is limited to one device */
+		device_id = getenv("ANDROID_DEVICE_ID");
+		if (device_id &&  strlen(device_id) > 0) {
+			fprintf(stdout, "This adb is limited to 1 device: '%s'\n", device_id);
+		} else {
+			fprintf(stdout, "This adb daemon is not limited to one device\n");
+		}
+		return 0;
+	}
 
     usage();
     return 1;
