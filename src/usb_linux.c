@@ -127,6 +127,7 @@ static inline int badname(const char *name)
     return 0;
 }
 
+
 static void find_usb_device(const char *base,
         void (*register_device_callback)
                 (const char *, unsigned char, unsigned char, int, int, unsigned))
@@ -262,9 +263,10 @@ static void find_usb_device(const char *base,
                             local_ep_in = ep2->bEndpointAddress;
                             local_ep_out = ep1->bEndpointAddress;
                         }
+						
+                    	register_device_callback(devname, local_ep_in, local_ep_out,
+                            	interface->bInterfaceNumber, device->iSerialNumber, zero_mask);
 
-                        register_device_callback(devname, local_ep_in, local_ep_out,
-                                interface->bInterfaceNumber, device->iSerialNumber, zero_mask);
                         break;
                     }
                 } else {
@@ -532,6 +534,21 @@ int usb_close(usb_handle *h)
     return 0;
 }
 
+static bool is_device_allowed(char* serial) {
+	
+	char* device_id = getenv("ANDROID_DEVICE_ID");
+	if (device_id && strlen(device_id) > 0) {
+
+		if (!strcmp(serial, device_id)) {
+			return true;
+		}		
+
+		return false;
+	}
+
+	return true;
+}
+
 static void register_device(const char *dev_name,
                             unsigned char ep_in, unsigned char ep_out,
                             int interface, int serial_index, unsigned zero_mask)
@@ -644,7 +661,9 @@ static void register_device(const char *dev_name,
     usb->next->prev = usb;
     adb_mutex_unlock(&usb_lock);
 
-    register_usb_transport(usb, serial, usb->writeable);
+	if (is_device_allowed(serial)) {
+	    register_usb_transport(usb, serial, usb->writeable);
+	}
     return;
 
 fail:

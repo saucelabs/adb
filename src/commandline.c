@@ -70,7 +70,7 @@ static char *product_file(const char *extra)
 }
 
 void version(FILE * out) {
-    fprintf(out, "Android Debug Bridge version %d.%d.%d\n",
+    fprintf(out, "Android Debug Bridge version (Testobject mod) %d.%d.%d\n",
          ADB_VERSION_MAJOR, ADB_VERSION_MINOR, ADB_SERVER_VERSION);
 }
 
@@ -831,6 +831,7 @@ int adb_commandline(int argc, char **argv)
     transport_type ttype = kTransportAny;
     char* serial = NULL;
     char* server_port_str = NULL;
+	char* device_id = NULL;
 
         /* If defined, this should be an absolute path to
          * the directory containing all of the various system images
@@ -858,6 +859,12 @@ int adb_commandline(int argc, char **argv)
             return usage();
         }
     }
+
+	/* Check if adb is limited to one device */
+	device_id = getenv("ANDROID_DEVICE_ID");
+	if (device_id &&  strlen(device_id) > 0) {
+		fprintf(stdout, "This adb is limited to 1 device: '%s'\n", device_id);
+	}
 
     /* modifiers and flags */
     while(argc > 0) {
