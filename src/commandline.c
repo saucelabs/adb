@@ -46,6 +46,7 @@ int install_app(transport_type transport, char* serial, int argc, char** argv);
 int uninstall_app(transport_type transport, char* serial, int argc, char** argv);
 
 static const char *gProductOutPath = NULL;
+extern int gListenAll;
 
 static char *product_file(const char *extra)
 {
@@ -70,7 +71,7 @@ static char *product_file(const char *extra)
 }
 
 void version(FILE * out) {
-    fprintf(out, "Android Debug Bridge version (Testobject mod) %d.%d.%d\n",
+    fprintf(out, "Android Debug Bridge version %d.%d.%d\n",
          ADB_VERSION_MAJOR, ADB_VERSION_MINOR, ADB_SERVER_VERSION);
 }
 
@@ -80,12 +81,13 @@ void help()
 
     fprintf(stderr,
         "\n"
+        " -a                            - directs adb to listen on all interfaces for a connection\n"
         " -d                            - directs command to the only connected USB device\n"
         "                                 returns an error if more than one USB device is present.\n"
         " -e                            - directs command to the only running emulator.\n"
         "                                 returns an error if more than one emulator is running.\n"
-        " -s <serial number>            - directs command to the USB device or emulator with\n"
-        "                                 the given serial number. Overrides ANDROID_SERIAL\n"
+        " -s <specific device>          - directs command to the device or emulator with the given\n"
+        "                                 serial number or qualifier. Overrides ANDROID_SERIAL\n"
         "                                 environment variable.\n"
         " -p <product name or path>     - simple product name like 'sooner', or\n"
         "                                 a relative/absolute path to a product\n"
@@ -93,7 +95,10 @@ void help()
         "                                 If -p is not specified, the ANDROID_PRODUCT_OUT\n"
         "                                 environment variable is used, which must\n"
         "                                 be an absolute path.\n"
-        " devices                       - list all connected devices\n"
+        " -H                            - Name of adb server host (default: localhost)\n"
+        " -P                            - Port of adb server (default: 5037)\n"
+        " devices [-l]                  - list all connected devices\n"
+        "                                 ('-l' will also list device qualifiers)\n"
         " connect <host>[:<port>]       - connect to a device via TCP/IP\n"
         "                                 Port 5555 is used by default if no port number is specified.\n"
         " disconnect [<host>[:<port>]]  - disconnect from a TCP/IP device.\n"
@@ -102,8 +107,12 @@ void help()
         "                                 will disconnect from all connected TCP/IP devices.\n"
         "\n"
         "device commands:\n"
-        "  adb push <local> <remote>    - copy file/dir to device\n"
-        "  adb pull <remote> [<local>]  - copy file/dir from device\n"
+        "  adb push [-p] <local> <remote>\n"
+        "                               - copy file/dir to device\n"
+        "                                 ('-p' to display the transfer progress)\n"
+        "  adb pull [-p] <remote> [<local>]\n"
+        "                               - copy file/dir from device\n"
+        "                                 ('-p' to display the transfer progress)\n"
         "  adb sync [ <directory> ]     - copy host->device only if changed\n"
         "                                 (-l means list but don't copy)\n"
         "                                 (see 'adb help all')\n"
@@ -111,6 +120,9 @@ void help()
         "  adb shell <command>          - run remote shell command\n"
         "  adb emu <command>            - run emulator console command\n"
         "  adb logcat [ <filter-spec> ] - View device log\n"
+        "  adb forward --list           - list all forward socket connections.\n"
+        "                                 the format is a list of lines with the following format:\n"
+        "                                    <serial> \" \" <local> \" \" <remote> \"\\n\"\n"
         "  adb forward <local> <remote> - forward socket connections\n"
         "                                 forward specs are one of: \n"
         "                                   tcp:<port>\n"
@@ -119,22 +131,32 @@ void help()
         "                                   localfilesystem:<unix domain socket name>\n"
         "                                   dev:<character device name>\n"
         "                                   jdwp:<process pid> (remote only)\n"
+        "  adb forward --no-rebind <local> <remote>\n"
+        "                               - same as 'adb forward <local> <remote>' but fails\n"
+        "                                 if <local> is already forwarded\n"
+        "  adb forward --remove <local> - remove a specific forward socket connection\n"
+        "  adb forward --remove-all     - remove all forward socket connections\n"
         "  adb jdwp                     - list PIDs of processes hosting a JDWP transport\n"
-        "  adb install [-l] [-r] [-s] <file> - push this package file to the device and install it\n"
+        "  adb install [-l] [-r] [-s] [--algo <algorithm name> --key <hex-encoded key> --iv <hex-encoded iv>] <file>\n"
+        "                               - push this package file to the device and install it\n"
         "                                 ('-l' means forward-lock the app)\n"
         "                                 ('-r' means reinstall the app, keeping its data)\n"
         "                                 ('-s' means install on SD card instead of internal storage)\n"
+        "                                 ('--algo', '--key', and '--iv' mean the file is encrypted already)\n"
         "  adb uninstall [-k] <package> - remove this app package from the device\n"
         "                                 ('-k' means keep the data and cache directories)\n"
         "  adb bugreport                - return all information from the device\n"
         "                                 that should be included in a bug report.\n"
         "\n"
-        "  adb backup [-f <file>] [-apk|-noapk] [-shared|-noshared] [-all] [-system|-nosystem] [<packages...>]\n"
+        "  adb backup [-f <file>] [-apk|-noapk] [-obb|-noobb] [-shared|-noshared] [-all] [-system|-nosystem] [<packages...>]\n"
         "                               - write an archive of the device's data to <file>.\n"
         "                                 If no -f option is supplied then the data is written\n"
         "                                 to \"backup.ab\" in the current directory.\n"
         "                                 (-apk|-noapk enable/disable backup of the .apks themselves\n"
         "                                    in the archive; the default is noapk.)\n"
+        "                                 (-obb|-noobb enable/disable backup of any installed apk expansion\n"
+        "                                    (aka .obb) files associated with each application; the default\n"
+        "                                    is noobb.)\n"
         "                                 (-shared|-noshared enable/disable backup of the device's\n"
         "                                    shared storage / SD card contents; the default is noshared.)\n"
         "                                 (-all means to back up all installed applications)\n"
@@ -157,6 +179,7 @@ void help()
         "  adb kill-server              - kill the server if it is running\n"
         "  adb get-state                - prints: offline | bootloader | device\n"
         "  adb get-serialno             - prints: <serial-number>\n"
+        "  adb get-devpath              - prints: <device-path>\n"
         "  adb status-window            - continuously print device status for a specified device\n"
         "  adb remount                  - remounts the /system partition on the device read-write\n"
         "  adb reboot [bootloader|recovery] - reboots the device, optionally into the bootloader or recovery program\n"
@@ -367,6 +390,83 @@ static void format_host_command(char* buffer, size_t  buflen, const char* comman
     }
 }
 
+int adb_download_buffer(const char *service, const char *fn, const void* data, int sz,
+                        unsigned progress)
+{
+    char buf[4096];
+    unsigned total;
+    int fd;
+    const unsigned char *ptr;
+
+    sprintf(buf,"%s:%d", service, sz);
+    fd = adb_connect(buf);
+    if(fd < 0) {
+        fprintf(stderr,"error: %s\n", adb_error());
+        return -1;
+    }
+
+    int opt = CHUNK_SIZE;
+    opt = setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &opt, sizeof(opt));
+
+    total = sz;
+    ptr = data;
+
+    if(progress) {
+        char *x = strrchr(service, ':');
+        if(x) service = x + 1;
+    }
+
+    while(sz > 0) {
+        unsigned xfer = (sz > CHUNK_SIZE) ? CHUNK_SIZE : sz;
+        if(writex(fd, ptr, xfer)) {
+            adb_status(fd);
+            fprintf(stderr,"* failed to write data '%s' *\n", adb_error());
+            return -1;
+        }
+        sz -= xfer;
+        ptr += xfer;
+        if(progress) {
+            printf("sending: '%s' %4d%%    \r", fn, (int)(100LL - ((100LL * sz) / (total))));
+            fflush(stdout);
+        }
+    }
+    if(progress) {
+        printf("\n");
+    }
+
+    if(readx(fd, buf, 4)){
+        fprintf(stderr,"* error reading response *\n");
+        adb_close(fd);
+        return -1;
+    }
+    if(memcmp(buf, "OKAY", 4)) {
+        buf[4] = 0;
+        fprintf(stderr,"* error response '%s' *\n", buf);
+        adb_close(fd);
+        return -1;
+    }
+
+    adb_close(fd);
+    return 0;
+}
+
+
+int adb_download(const char *service, const char *fn, unsigned progress)
+{
+    void *data;
+    unsigned sz;
+
+    data = load_file(fn, &sz);
+    if(data == 0) {
+        fprintf(stderr,"* cannot read '%s' *\n", fn);
+        return -1;
+    }
+
+    int status = adb_download_buffer(service, fn, data, sz, progress);
+    free(data);
+    return status;
+}
+
 static void status_window(transport_type ttype, const char* serial)
 {
     char command[4096];
@@ -561,6 +661,10 @@ static int logcat(transport_type transport, char* serial, int argc, char **argv)
 
     free(quoted_log_tags);
 
+    if (!strcmp(argv[0],"longcat")) {
+        strncat(buf, " -v long", sizeof(buf)-1);
+    }
+
     argc -= 1;
     argv += 1;
     while(argc-- > 0) {
@@ -644,6 +748,7 @@ static int backup(int argc, char** argv) {
         return -1;
     }
 
+    printf("Now unlock your device and confirm the backup operation.\n");
     copy_to_file(fd, outFd);
 
     adb_close(fd);
@@ -666,11 +771,12 @@ static int restore(int argc, char** argv) {
 
     fd = adb_connect("restore:");
     if (fd < 0) {
-        fprintf(stderr, "adb: unable to connect for backup\n");
+        fprintf(stderr, "adb: unable to connect for restore\n");
         adb_close(tarFd);
         return -1;
     }
 
+    printf("Now unlock your device and confirm the restore operation.\n");
     copy_to_file(tarFd, fd);
 
     adb_close(fd);
@@ -819,6 +925,28 @@ static const char *find_product_out_path(const char *hint)
     return path_buf;
 }
 
+
+static void parse_push_pull_args(char** arg, int narg, char const** path1, char const** path2,
+                                 int* show_progress) {
+    *show_progress = 0;
+
+    if ((narg > 0) && !strcmp(*arg, "-p")) {
+        *show_progress = 1;
+        ++arg;
+        --narg;
+    }
+
+    if (narg > 0) {
+        *path1 = *arg;
+        ++arg;
+        --narg;
+    }
+
+    if (narg > 0) {
+        *path2 = *arg;
+    }
+}
+
 int adb_commandline(int argc, char **argv)
 {
     char buf[4096];
@@ -831,7 +959,6 @@ int adb_commandline(int argc, char **argv)
     transport_type ttype = kTransportAny;
     char* serial = NULL;
     char* server_port_str = NULL;
-	char* device_id = NULL;
 
         /* If defined, this should be an absolute path to
          * the directory containing all of the various system images
@@ -852,9 +979,9 @@ int adb_commandline(int argc, char **argv)
     int server_port = DEFAULT_ADB_PORT;
     if (server_port_str && strlen(server_port_str) > 0) {
         server_port = (int) strtol(server_port_str, NULL, 0);
-        if (server_port <= 0) {
+        if (server_port <= 0 || server_port > 65535) {
             fprintf(stderr,
-                    "adb: Env var ANDROID_ADB_SERVER_PORT must be a positive number. Got \"%s\"\n",
+                    "adb: Env var ANDROID_ADB_SERVER_PORT must be a positive number less than 65535. Got \"%s\"\n",
                     server_port_str);
             return usage();
         }
@@ -879,7 +1006,7 @@ int adb_commandline(int argc, char **argv)
                 argc--;
                 argv++;
             } else {
-                product = argv[1] + 2;
+                product = argv[0] + 2;
             }
             gProductOutPath = find_product_out_path(product);
             if (gProductOutPath == NULL) {
@@ -900,6 +1027,42 @@ int adb_commandline(int argc, char **argv)
             ttype = kTransportUsb;
         } else if (!strcmp(argv[0],"-e")) {
             ttype = kTransportLocal;
+        } else if (!strcmp(argv[0],"-a")) {
+            gListenAll = 1;
+        } else if(!strncmp(argv[0], "-H", 2)) {
+            const char *hostname = NULL;
+            if (argv[0][2] == '\0') {
+                if (argc < 2) return usage();
+                hostname = argv[1];
+                argc--;
+                argv++;
+            } else {
+                hostname = argv[0] + 2;
+            }
+            adb_set_tcp_name(hostname);
+
+        } else if(!strncmp(argv[0], "-P", 2)) {
+            if (argv[0][2] == '\0') {
+                if (argc < 2) return usage();
+                server_port_str = argv[1];
+                argc--;
+                argv++;
+            } else {
+                server_port_str = argv[0] + 2;
+            }
+            if (strlen(server_port_str) > 0) {
+                server_port = (int) strtol(server_port_str, NULL, 0);
+                if (server_port <= 0 || server_port > 65535) {
+                    fprintf(stderr,
+                            "adb: port number must be a positive number less than 65536. Got \"%s\"\n",
+                            server_port_str);
+                    return usage();
+                }
+            } else {
+                fprintf(stderr,
+                "adb: port number must be a positive number less than 65536. Got empty string.\n");
+                return usage();
+            }
         } else {
                 /* out of recognized modifiers and flags */
             break;
@@ -932,7 +1095,16 @@ top:
 
     if(!strcmp(argv[0], "devices")) {
         char *tmp;
-        snprintf(buf, sizeof buf, "host:%s", argv[0]);
+        char *listopt;
+        if (argc < 2)
+            listopt = "";
+        else if (argc == 2 && !strcmp(argv[1], "-l"))
+            listopt = argv[1];
+        else {
+            fprintf(stderr, "Usage: adb devices [-l]\n");
+            return 1;
+        }
+        snprintf(buf, sizeof buf, "host:%s%s", argv[0], listopt);
         tmp = adb_query(buf);
         if(tmp) {
             printf("List of devices attached \n");
@@ -1058,6 +1230,15 @@ top:
         return 0;
     }
 
+    if(!strcmp(argv[0], "sideload")) {
+        if(argc != 2) return usage();
+        if(adb_download("sideload", argv[1], 1)) {
+            return 1;
+        } else {
+            return 0;
+        }
+    }
+
     if(!strcmp(argv[0], "remount") || !strcmp(argv[0], "reboot")
             || !strcmp(argv[0], "reboot-bootloader")
             || !strcmp(argv[0], "tcpip") || !strcmp(argv[0], "usb")
@@ -1119,16 +1300,85 @@ top:
     }
 
     if(!strcmp(argv[0], "forward")) {
-        if(argc != 3) return usage();
-        if (serial) {
-            snprintf(buf, sizeof buf, "host-serial:%s:forward:%s;%s",serial, argv[1], argv[2]);
-        } else if (ttype == kTransportUsb) {
-            snprintf(buf, sizeof buf, "host-usb:forward:%s;%s", argv[1], argv[2]);
-        } else if (ttype == kTransportLocal) {
-            snprintf(buf, sizeof buf, "host-local:forward:%s;%s", argv[1], argv[2]);
-        } else {
-            snprintf(buf, sizeof buf, "host:forward:%s;%s", argv[1], argv[2]);
+        char host_prefix[64];
+        char remove = 0;
+        char remove_all = 0;
+        char list = 0;
+        char no_rebind = 0;
+
+        // Parse options here.
+        while (argc > 1 && argv[1][0] == '-') {
+            if (!strcmp(argv[1], "--list"))
+                list = 1;
+            else if (!strcmp(argv[1], "--remove"))
+                remove = 1;
+            else if (!strcmp(argv[1], "--remove-all"))
+                remove_all = 1;
+            else if (!strcmp(argv[1], "--no-rebind"))
+                no_rebind = 1;
+            else {
+                return usage();
+            }
+            argc--;
+            argv++;
         }
+
+        // Ensure we can only use one option at a time.
+        if (list + remove + remove_all + no_rebind > 1) {
+            return usage();
+        }
+
+        // Determine the <host-prefix> for this command.
+        if (serial) {
+            snprintf(host_prefix, sizeof host_prefix, "host-serial:%s",
+                    serial);
+        } else if (ttype == kTransportUsb) {
+            snprintf(host_prefix, sizeof host_prefix, "host-usb");
+        } else if (ttype == kTransportLocal) {
+            snprintf(host_prefix, sizeof host_prefix, "host-local");
+        } else {
+            snprintf(host_prefix, sizeof host_prefix, "host");
+        }
+
+        // Implement forward --list
+        if (list) {
+            if (argc != 1)
+                return usage();
+            snprintf(buf, sizeof buf, "%s:list-forward", host_prefix);
+            char* forwards = adb_query(buf);
+            if (forwards == NULL) {
+                fprintf(stderr, "error: %s\n", adb_error());
+                return 1;
+            }
+            printf("%s", forwards);
+            free(forwards);
+            return 0;
+        }
+
+        // Implement forward --remove-all
+        else if (remove_all) {
+            if (argc != 1)
+                return usage();
+            snprintf(buf, sizeof buf, "%s:killforward-all", host_prefix);
+        }
+
+        // Implement forward --remove <local>
+        else if (remove) {
+            if (argc != 2)
+                return usage();
+            snprintf(buf, sizeof buf, "%s:killforward:%s", host_prefix, argv[1]);
+        }
+        // Or implement one of:
+        //    forward <local> <remote>
+        //    forward --no-rebind <local> <remote>
+        else
+        {
+          if (argc != 3)
+            return usage();
+          const char* command = no_rebind ? "forward:norebind:" : "forward";
+          snprintf(buf, sizeof buf, "%s:%s:%s;%s", host_prefix, command, argv[1], argv[2]);
+        }
+
         if(adb_command(buf)) {
             fprintf(stderr,"error: %s\n", adb_error());
             return 1;
@@ -1144,18 +1394,29 @@ top:
     }
 
     if(!strcmp(argv[0], "push")) {
-        if(argc != 3) return usage();
-        return do_sync_push(argv[1], argv[2], 0 /* no verify APK */);
+        int show_progress = 0;
+        const char* lpath = NULL, *rpath = NULL;
+
+        parse_push_pull_args(&argv[1], argc - 1, &lpath, &rpath, &show_progress);
+
+        if ((lpath != NULL) && (rpath != NULL)) {
+            return do_sync_push(lpath, rpath, 0 /* no verify APK */, show_progress);
+        }
+
+        return usage();
     }
 
     if(!strcmp(argv[0], "pull")) {
-        if (argc == 2) {
-            return do_sync_pull(argv[1], ".");
-        } else if (argc == 3) {
-            return do_sync_pull(argv[1], argv[2]);
-        } else {
-            return usage();
+        int show_progress = 0;
+        const char* rpath = NULL, *lpath = ".";
+
+        parse_push_pull_args(&argv[1], argc - 1, &rpath, &lpath, &show_progress);
+
+        if (rpath != NULL) {
+            return do_sync_pull(rpath, lpath, show_progress);
         }
+
+        return usage();
     }
 
     if(!strcmp(argv[0], "install")) {
@@ -1205,7 +1466,8 @@ top:
     /* passthrough commands */
 
     if(!strcmp(argv[0],"get-state") ||
-        !strcmp(argv[0],"get-serialno"))
+        !strcmp(argv[0],"get-serialno") ||
+        !strcmp(argv[0],"get-devpath"))
     {
         char *tmp;
 
@@ -1226,7 +1488,7 @@ top:
         return 0;
     }
 
-    if(!strcmp(argv[0],"logcat") || !strcmp(argv[0],"lolcat")) {
+    if(!strcmp(argv[0],"logcat") || !strcmp(argv[0],"lolcat") || !strcmp(argv[0],"longcat")) {
         return logcat(ttype, serial, argc, argv);
     }
 
@@ -1268,17 +1530,6 @@ top:
         version(stdout);
         return 0;
     }
-
-	if(!strcmp(argv[0], "limited")) {
-		/* Check if adb is limited to one device */
-		device_id = getenv("ANDROID_DEVICE_ID");
-		if (device_id &&  strlen(device_id) > 0) {
-			fprintf(stdout, "This adb is limited to 1 device: '%s'\n", device_id);
-		} else {
-			fprintf(stdout, "This adb daemon is not limited to one device\n");
-		}
-		return 0;
-	}
 
     usage();
     return 1;
@@ -1452,6 +1703,7 @@ int install_app(transport_type transport, char* serial, int argc, char** argv)
     int file_arg = -1;
     int err;
     int i;
+    int verify_apk = 1;
 
     for (i = 1; i < argc; i++) {
         if (*argv[i] != '-') {
@@ -1462,6 +1714,15 @@ int install_app(transport_type transport, char* serial, int argc, char** argv)
             i++;
         } else if (!strcmp(argv[i], "-s")) {
             where = SD_DEST;
+        } else if (!strcmp(argv[i], "--algo")) {
+            verify_apk = 0;
+            i++;
+        } else if (!strcmp(argv[i], "--iv")) {
+            verify_apk = 0;
+            i++;
+        } else if (!strcmp(argv[i], "--key")) {
+            verify_apk = 0;
+            i++;
         }
     }
 
@@ -1493,15 +1754,16 @@ int install_app(transport_type transport, char* serial, int argc, char** argv)
         }
     }
 
-    err = do_sync_push(apk_file, apk_dest, 1 /* verify APK */);
+    err = do_sync_push(apk_file, apk_dest, verify_apk, 0 /* no show progress */);
     if (err) {
-        return err;
+        goto cleanup_apk;
     } else {
         argv[file_arg] = apk_dest; /* destination name, not source location */
     }
 
     if (verification_file != NULL) {
-        err = do_sync_push(verification_file, verification_dest, 0 /* no verify APK */);
+        err = do_sync_push(verification_file, verification_dest, 0 /* no verify APK */,
+                           0 /* no show progress */);
         if (err) {
             goto cleanup_apk;
         } else {
@@ -1511,11 +1773,11 @@ int install_app(transport_type transport, char* serial, int argc, char** argv)
 
     pm_command(transport, serial, argc, argv);
 
+cleanup_apk:
     if (verification_file != NULL) {
         delete_file(transport, serial, verification_dest);
     }
 
-cleanup_apk:
     delete_file(transport, serial, apk_dest);
 
     return err;

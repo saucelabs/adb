@@ -20,8 +20,6 @@
 #ifndef _ADB_SYSDEPS_H
 #define _ADB_SYSDEPS_H
 
-#include "../config.h"
-
 #ifdef __CYGWIN__
 #  undef _WIN32
 #endif
@@ -40,6 +38,7 @@
 
 #define OS_PATH_SEPARATOR '\\'
 #define OS_PATH_SEPARATOR_STR "\\"
+#define ENV_PATH_SEPARATOR_STR ";"
 
 typedef CRITICAL_SECTION          adb_mutex_t;
 
@@ -256,11 +255,12 @@ static __inline__  int  adb_is_absolute_host_path( const char*  path )
     return isalpha(path[0]) && path[1] == ':' && path[2] == '\\';
 }
 
+extern char*  adb_strtok_r(char *str, const char *delim, char **saveptr);
+
 #else /* !_WIN32 a.k.a. Unix */
 
 #include "fdevent.h"
 #include <cutils/sockets.h>
-#include <cutils/properties.h>
 #include <cutils/misc.h>
 #include <signal.h>
 #include <sys/wait.h>
@@ -274,9 +274,26 @@ static __inline__  int  adb_is_absolute_host_path( const char*  path )
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <string.h>
+#include <unistd.h>
+
+/*
+ * TEMP_FAILURE_RETRY is defined by some, but not all, versions of
+ * <unistd.h>. (Alas, it is not as standard as we'd hoped!) So, if it's
+ * not already defined, then define it here.
+ */
+#ifndef TEMP_FAILURE_RETRY
+/* Used to retry syscalls that can return EINTR. */
+#define TEMP_FAILURE_RETRY(exp) ({         \
+    typeof (exp) _rc;                      \
+    do {                                   \
+        _rc = (exp);                       \
+    } while (_rc == -1 && errno == EINTR); \
+    _rc; })
+#endif
 
 #define OS_PATH_SEPARATOR '/'
 #define OS_PATH_SEPARATOR_STR "/"
+#define ENV_PATH_SEPARATOR_STR ":"
 
 typedef  pthread_mutex_t          adb_mutex_t;
 
@@ -308,7 +325,7 @@ static __inline__ int  unix_open(const char*  path, int options,...)
 {
     if ((options & O_CREAT) == 0)
     {
-        return  open(path, options);
+        return  TEMP_FAILURE_RETRY( open(path, options) );
     }
     else
     {
@@ -317,19 +334,19 @@ static __inline__ int  unix_open(const char*  path, int options,...)
         va_start( args, options );
         mode = va_arg( args, int );
         va_end( args );
-        return open(path, options, mode);
+        return TEMP_FAILURE_RETRY( open( path, options, mode ) );
     }
 }
 
 static __inline__ int  adb_open_mode( const char*  pathname, int  options, int  mode )
 {
-    return open( pathname, options, mode );
+    return TEMP_FAILURE_RETRY( open( pathname, options, mode ) );
 }
 
 
 static __inline__ int  adb_open( const char*  pathname, int  options )
 {
-    int  fd = open( pathname, options );
+    int  fd = TEMP_FAILURE_RETRY( open( pathname, options ) );
     if (fd < 0)
         return -1;
     close_on_exec( fd );
@@ -355,7 +372,7 @@ static __inline__ int  adb_close(int fd)
 
 static __inline__  int  adb_read(int  fd, void*  buf, size_t  len)
 {
-    return read(fd, buf, len);
+    return TEMP_FAILURE_RETRY( read( fd, buf, len ) );
 }
 
 #undef   read
@@ -363,7 +380,7 @@ static __inline__  int  adb_read(int  fd, void*  buf, size_t  len)
 
 static __inline__  int  adb_write(int  fd, const void*  buf, size_t  len)
 {
-    return write(fd, buf, len);
+    return TEMP_FAILURE_RETRY( write( fd, buf, len ) );
 }
 #undef   write
 #define  write  ___xxx_write
@@ -384,7 +401,7 @@ static __inline__  int    adb_unlink(const char*  path)
 
 static __inline__  int  adb_creat(const char*  path, int  mode)
 {
-    int  fd = creat(path, mode);
+    int  fd = TEMP_FAILURE_RETRY( creat( path, mode ) );
 
     if ( fd < 0 )
         return -1;
@@ -399,7 +416,7 @@ static __inline__ int  adb_socket_accept(int  serverfd, struct sockaddr*  addr, 
 {
     int fd;
 
-    fd = accept(serverfd, addr, addrlen);
+    fd = TEMP_FAILURE_RETRY( accept( serverfd, addr, addrlen ) );
     if (fd >= 0)
         close_on_exec(fd);
 
@@ -491,6 +508,13 @@ static __inline__  int  adb_is_absolute_host_path( const char*  path )
 {
     return path[0] == '/';
 }
+
+static __inline__ char*  adb_strtok_r(char *str, const char *delim, char **saveptr)
+{
+    return strtok_r(str, delim, saveptr);
+}
+#undef   strtok_r
+#define  strtok_r  ___xxx_strtok_r
 
 #endif /* !_WIN32 */
 
