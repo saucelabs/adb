@@ -132,7 +132,7 @@ static void find_usb_device(const char *base,
         void (*register_device_callback)
                 (const char *, unsigned char, unsigned char, int, int, unsigned))
 {
-    char busname[32], devname[32];
+    char busname[255], devname[255];
     unsigned char local_ep_in, local_ep_out;
     DIR *busdir , *devdir ;
     struct dirent *de;
@@ -142,10 +142,13 @@ static void find_usb_device(const char *base,
     if(busdir == 0) return;
 
     while((de = readdir(busdir)) != 0) {
+
         if(badname(de->d_name)) continue;
 
         snprintf(busname, sizeof busname, "%s/%s", base, de->d_name);
+
         devdir = opendir(busname);
+
         if(devdir == 0) continue;
 
 //        DBGX("[ scanning %s ]\n", busname);
@@ -204,6 +207,7 @@ static void find_usb_device(const char *base,
                 adb_close(fd);
                 continue;
             }
+
 
                 // loop through all the descriptors and look for the ADB interface
             while (bufptr < bufend) {
@@ -534,21 +538,6 @@ int usb_close(usb_handle *h)
     return 0;
 }
 
-static bool is_device_allowed(char* serial) {
-	
-	char* device_id = getenv("ANDROID_DEVICE_ID");
-	if (device_id && strlen(device_id) > 0) {
-
-		if (!strcmp(serial, device_id)) {
-			return true;
-		}		
-
-		return false;
-	}
-
-	return true;
-}
-
 static void register_device(const char *dev_name,
                             unsigned char ep_in, unsigned char ep_out,
                             int interface, int serial_index, unsigned zero_mask)
@@ -661,11 +650,7 @@ static void register_device(const char *dev_name,
     usb->next->prev = usb;
     adb_mutex_unlock(&usb_lock);
 
-	if (is_device_allowed(serial)) {
-	    register_usb_transport(usb, serial, usb->writeable);
-	} else {
-		goto fail;
-	}
+	register_usb_transport(usb, serial, usb->writeable);
     return;
 
 fail:
@@ -682,7 +667,16 @@ void* device_poll_thread(void* unused)
     D("Created device thread\n");
     for(;;) {
             /* XXX use inotify */
-        find_usb_device("/dev/bus/usb", register_device);
+        // find_usb_device("/dev/bus/usb", register_device);
+
+	char busname[255];
+	char* device_id = getenv("ANDROID_DEVICE_ID");
+	if (device_id && strlen(device_id) > 0) {
+
+		snprintf(busname, sizeof busname, "/dev/testobject/%s", device_id);
+		find_usb_device(busname, register_device);
+	} 
+
         kick_disconnected_devices();
         sleep(1);
     }
