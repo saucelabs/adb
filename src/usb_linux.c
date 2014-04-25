@@ -675,6 +675,8 @@ void* device_poll_thread(void* unused)
 
 		snprintf(busname, sizeof busname, "/dev/testobject/%s", device_id);
 		find_usb_device(busname, register_device);
+	} else {
+		find_usb_device("/dev/bus/usb", register_device);
 	} 
 
         kick_disconnected_devices();
