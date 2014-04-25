@@ -51,13 +51,8 @@ android_memset16:
 
 android_memset32:
         .fnstart
-
-        /* mtk80744
         .save       {lr}
-        str         lr, [sp, #-4]! 
-        */
-        push        {r4, r5, r6, r7, r8, lr}
-        /* end mtk80744 */
+        str         lr, [sp, #-4]!
 
         /* align the destination to a cache-line */
         mov         r12, r1
@@ -78,23 +73,10 @@ android_memset32:
         strcs       r1, [r0], #4
 
 .Laligned32:
-
-        /* mtk80744 */
-        mov         r4, r1
-        mov         r5, r1
-        mov         r6, r1
-        mov         r7, r1
-        /* end mtk80744 */
-
         mov         r3, r1
 1:      subs        r2, r2, #32
-
-        /* mtk80744
         stmhsia     r0!, {r1,r3,r12,lr}
         stmhsia     r0!, {r1,r3,r12,lr}
-        */
-        stmhsia     r0!, {r1, r3, r4, r5, r6, r7, r12,lr}
-        /* end mtk80744 */
         bhs         1b
         add         r2, r2, #32
 
@@ -106,10 +88,6 @@ android_memset32:
         strcs       r1, [r0], #4
         strmih      lr, [r0], #2
 
-        /* mtk80744
         ldr         lr, [sp], #4
-        */
-        pop         {r4, r5, r6, r7, r8, lr}
-        /* end mtk80744 */
         bx          lr
         .fnend

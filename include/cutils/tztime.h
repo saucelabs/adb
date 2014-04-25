@@ -17,39 +17,8 @@
 #ifndef _CUTILS_TZTIME_H
 #define _CUTILS_TZTIME_H
 
-#include <time.h>
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-time_t mktime_tz(struct tm * const tmp, char const * tz);
-void localtime_tz(const time_t * const timep, struct tm * tmp, const char* tz);
-
-#ifndef HAVE_ANDROID_OS
-/* the following is defined in <time.h> in Bionic */
-
-struct strftime_locale {
-    const char *mon[12];    /* short names */
-    const char *month[12];  /* long names */
-    const char *standalone_month[12];  /* long standalone names */
-    const char *wday[7];    /* short names */
-    const char *weekday[7]; /* long names */
-    const char *X_fmt;
-    const char *x_fmt;
-    const char *c_fmt;
-    const char *am;
-    const char *pm;
-    const char *date_fmt;
-};
-
-size_t strftime_tz(char *s, size_t max, const char *format, const struct tm *tm, const struct strftime_locale *locale);
-
-#endif /* !HAVE_ANDROID_OS */
-
-#ifdef __cplusplus
-}
-#endif
+// TODO: fix both callers to just include <bionic_time.h> themselves.
+#include <bionic_time.h>
 
 #endif /* __CUTILS_TZTIME_H */ 
 

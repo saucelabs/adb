@@ -11,7 +11,8 @@ minimal_source_for_adb = \
 	sockets.c \
 	properties.c \
 	threads.c \
-	abort_socket.c
+	abort_socket.c \
+        load_file.c
 libcutils_a_SOURCES=$(minimal_source_for_adb)
 libcutils_a_CFLAGS = -O2 -g -Wall -DANDROID_SMP=0 -DLIBC_STATIC -DDLMALLOC_DEBUG \
 					-DHAVE_PTHREADS -DHOST_OS=linux

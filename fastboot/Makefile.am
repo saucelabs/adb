@@ -15,5 +15,5 @@ endif
 fastboot_SOURCES = protocol.c engine.c bootimg.c fastboot.c $(source_deps)
 LIBS = -lpthread -lz $(libs_deps)
 fastboot_CFLAGS = -O2 -g -Wall -Wno-unused-parameter
-fastboot_LDADD = $(top_srcdir)/libzipfile/libzipfile.a
+fastboot_LDADD = $(top_srcdir)/libzipfile/libzipfile.a $(top_srcdir)/libsparse/libsparse.a
 

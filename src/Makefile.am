@@ -15,12 +15,12 @@ endif
 
 adb_SOURCES = adb.c console.c transport.c transport_local.c transport_usb.c \
     commandline.c adb_client.c services.c file_sync_client.c utils.c \
-    usb_vendors.c fdevent.c sockets.c $(source_deps)
+    usb_vendors.c fdevent.c sockets.c adb_auth_host.c $(source_deps)
 
 adb_CFLAGS = -O2 -g -Wall -Wno-unused-parameter \
            -DADB_HOST=1 -D_XOPEN_SOURCE -D_GNU_SOURCE -DHAVE_FORKEXEC
 
-LIBS = -lpthread -lz $(libs_deps)
+LIBS = -lpthread -lz -lssl -lcrypto $(libs_deps)
 
-adb_LDADD = $(top_srcdir)/libcutils/libcutils.a $(top_srcdir)/libzipfile/libzipfile.a
+adb_LDADD = $(top_srcdir)/libcutils/libcutils.a $(top_srcdir)/libzipfile/libzipfile.a $(top_srcdir)/libmincrypt/libmincrypt.a
 

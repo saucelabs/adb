@@ -18,6 +18,7 @@ AC_CHECK_LIB(rt, sched_setscheduler)
 AC_CHECK_LIB(pthread, pthread_create)
 AC_CHECK_LIB(ncurses, delscreen)
 AC_CHECK_LIB(z, inflateInit2_)
+AC_CHECK_LIB(ssl, SSL_library_init)
 
 # Checks for header files.
 AC_CHECK_HEADERS(fcntl.h limits.h memory.h netdb.h netinet/in.h stddef.h stdint.h stdlib.h string.h strings.h sys/ioctl.h sys/mount.h sys/socket.h sys/time.h termios.h unistd.h utime.h)
@@ -46,4 +47,4 @@ hosttype=`uname -s`
 AM_CONDITIONAL(HOST_IS_LINUX, test x"$hosttype" = xLinux)
 AM_CONDITIONAL(HOST_IS_DARWIN, test x"$hosttype" = xDarwin)
 
-AC_OUTPUT(Makefile src/Makefile fastboot/Makefile libcutils/Makefile libzipfile/Makefile)
+AC_OUTPUT(Makefile src/Makefile libcutils/Makefile libzipfile/Makefile libmincrypt/Makefile libsparse/Makefile)
