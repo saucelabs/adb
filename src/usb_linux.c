@@ -686,7 +686,18 @@ void* device_poll_thread(void* unused)
     D("Created device thread\n");
     for(;;) {
             /* XXX use inotify */
-        find_usb_device("/dev/bus/usb", register_device);
+        // find_usb_device("/dev/bus/usb", register_device);
+
+// **************************** TESTOBJECT PATCH: specify usb device descriptor directory by env var *************************
+	char busname[255];
+	char* device_id = getenv("ANDROID_DEVICE_ID");
+	if (device_id && strlen(device_id) > 0) {
+		snprintf(busname, sizeof busname, "/dev/testobject/%s", device_id);
+		find_usb_device(busname, register_device);
+	} else {
+		find_usb_device("/dev/bus/usb", register_device);
+	} 
+
         kick_disconnected_devices();
         sleep(1);
     }
