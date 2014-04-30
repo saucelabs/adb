@@ -692,8 +692,15 @@ void* device_poll_thread(void* unused)
 	char busname[255];
 	char* device_id = getenv("ANDROID_DEVICE_ID");
 	if (device_id && strlen(device_id) > 0) {
-		snprintf(busname, sizeof busname, "/dev/testobject/%s", device_id);
-		find_usb_device(busname, register_device);
+		DIR* devdir = opendir("/devhost");
+		if(ENOENT == errno) {
+			snprintf(busname, sizeof busname, "/dev/testobject/%s", device_id);
+			find_usb_device(busname, register_device);
+		} else {
+			snprintf(busname, sizeof busname, "/devhost/testobject/%s", device_id);
+			find_usb_device(busname, register_device);
+			closedir(devdir);
+		} 
 	} else {
 		find_usb_device("/dev/bus/usb", register_device);
 	} 
