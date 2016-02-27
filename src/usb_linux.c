@@ -132,7 +132,7 @@ static void find_usb_device(const char *base,
         void (*register_device_callback)
                 (const char *, const char *, unsigned char, unsigned char, int, int, unsigned))
 {
-    char busname[128], devname[128];
+    char busname[255], devname[255];
     unsigned char local_ep_in, local_ep_out;
     DIR *busdir , *devdir ;
     struct dirent *de;
