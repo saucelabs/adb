@@ -52,7 +52,7 @@ struct usb_handle
     usb_handle *prev;
     usb_handle *next;
 
-    char fname[64];
+    char fname[255];
     int desc;
     unsigned char ep_in;
     unsigned char ep_out;
@@ -139,7 +139,10 @@ static void find_usb_device(const char *base,
     int fd ;
 
     busdir = opendir(base);
-    if(busdir == 0) return;
+    if(busdir == 0) {
+        fprintf(stderr, "* ERROR OPENING BASE DIR: %s *\n", base);
+        return;
+    }
 
     while((de = readdir(busdir)) != 0) {
         if(badname(de->d_name)) continue;
@@ -692,16 +695,13 @@ void* device_poll_thread(void* unused)
 	char busname[255];
 	char* device_id = getenv("ANDROID_DEVICE_ID");
 	if (device_id && strlen(device_id) > 0) {
-		DIR* devdir = opendir("/devhost");
-		if(ENOENT == errno) {
-			snprintf(busname, sizeof busname, "/dev/testobject/%s", device_id);
-			find_usb_device(busname, register_device);
-		} else {
-			snprintf(busname, sizeof busname, "/devhost/testobject/%s", device_id);
-			find_usb_device(busname, register_device);
-			closedir(devdir);
-		} 
+		DIR* devdir = opendir("/dev");
+        snprintf(busname, sizeof busname, "/dev/testobject/%s", device_id);
+        fprintf(stdout,"* daemon connecting to device at /dev/testobject/%s *\n", device_id);
+        find_usb_device(busname, register_device);
+        closedir(devdir);
 	} else {
+        fprintf(stdout, "* daemon connecting to ALL Android devices * \n");
 		find_usb_device("/dev/bus/usb", register_device);
 	} 
 
